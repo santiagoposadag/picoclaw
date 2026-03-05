@@ -8,6 +8,14 @@ export interface ModelInfo {
   api_key: string
   proxy?: string
   auth_method?: string
+  // Advanced fields
+  connect_mode?: string
+  workspace?: string
+  rpm?: number
+  max_tokens_field?: string
+  request_timeout?: number
+  thinking_level?: string
+  // Meta
   configured: boolean
   is_default: boolean
 }

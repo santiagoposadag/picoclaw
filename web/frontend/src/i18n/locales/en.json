@@ -37,11 +37,9 @@
     "noHistory": "No chat history yet",
     "messagesCount": "{{count}} messages",
     "noModel": "Select model",
-    "configureModelPrompt": "Configure models to use",
     "setupModel": {
       "title": "No Model Configured",
-      "description": "You need to configure at least one AI model with an API key before you can start chatting.",
-      "action": "Configure Models"
+      "description": "You need to configure at least one AI model with an API key before you can start chatting."
     },
     "modelGroup": {
       "apikey": "API Key",
@@ -66,7 +64,79 @@
     }
   },
   "common": {
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "models": {
+    "description": "Configure API keys for each AI provider. Only configured models are available for chat.",
+    "loadError": "Failed to load models",
+    "header": {
+      "configured": "configured"
+    },
+    "currentDefault": "Default model:",
+    "status": {
+      "configured": "Configured",
+      "unconfigured": "Not configured"
+    },
+    "badge": {
+      "default": "Default"
+    },
+    "action": {
+      "edit": "Edit API key",
+      "setDefault": "Set as default",
+      "delete": "Delete model"
+    },
+    "add": {
+      "button": "Add Model",
+      "title": "Add Custom Model",
+      "description": "Add an OpenAI-compatible or native model endpoint.",
+      "modelName": "Model Alias",
+      "modelNamePlaceholder": "e.g. my-gpt4",
+      "modelNameHint": "A short name used to identify this model in conversations.",
+      "modelId": "Model Identifier",
+      "modelIdPlaceholder": "e.g. openai/gpt-4o",
+      "modelIdHint": "Format: protocol/model-id. Supported: openai, anthropic, gemini, groq, …",
+      "errorRequired": "This field is required.",
+      "saveError": "Failed to add model",
+      "confirm": "Add Model"
+    },
+    "delete": {
+      "title": "Delete Model?",
+      "description": "\"{{name}}\" will be permanently removed from your model list. This cannot be undone.",
+      "confirm": "Delete",
+      "errorDefault": "Cannot delete the default model. Please set another model as default first."
+    },
+    "advanced": {
+      "toggle": "Advanced options"
+    },
+    "field": {
+      "apiBase": "API Base URL",
+      "apiKey": "API Key",
+      "apiKeyPlaceholder": "Enter your API key",
+      "apiKeyPlaceholderSet": "Leave blank to keep existing key",
+      "proxy": "HTTP Proxy",
+      "proxyHint": "Optional. e.g. http://127.0.0.1:7890",
+      "authMethod": "Auth Method",
+      "authMethodHint": "Authentication method: oauth, token. Leave blank for API key auth.",
+      "connectMode": "Connect Mode",
+      "connectModeHint": "Connection mode for CLI-based providers: stdio or grpc.",
+      "workspace": "Workspace Path",
+      "workspaceHint": "Working directory for CLI-based providers (e.g. GitHub Copilot).",
+      "requestTimeout": "Request Timeout (s)",
+      "requestTimeoutHint": "Maximum seconds to wait for a response. 0 = use default.",
+      "rpm": "Rate Limit (RPM)",
+      "rpmHint": "Maximum requests per minute. 0 = no limit.",
+      "thinkingLevel": "Thinking Level",
+      "thinkingLevelHint": "Extended thinking budget: off, low, medium, high, xhigh, adaptive.",
+      "maxTokensField": "Max Tokens Field",
+      "maxTokensFieldHint": "Override the request field name for max tokens, e.g. max_completion_tokens."
+    },
+    "edit": {
+      "title": "Configure {{name}}",
+      "apiKeyHint": "A key is already set. Leave blank to keep it unchanged.",
+      "oauthNote": "This provider uses OAuth — no API key required.",
+      "saveError": "Failed to save"
+    }
   },
   "pages": {
     "providers": {

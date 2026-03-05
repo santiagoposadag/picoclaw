@@ -63,6 +63,7 @@ export function useGateway() {
       setGateway((prev) => ({ ...prev, status: "starting" }))
     } catch (err) {
       console.error("Failed to start gateway:", err)
+      setGateway((prev) => ({ ...prev, status: "unknown" }))
     } finally {
       setLoading(false)
     }

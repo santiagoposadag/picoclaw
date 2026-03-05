@@ -20,6 +20,7 @@ func (h *Handler) registerModelRoutes(mux *http.ServeMux) {
 }
 
 // modelResponse is the JSON structure returned for each model in the list.
+// All ModelConfig fields are included so the frontend can display and edit them.
 type modelResponse struct {
 	Index      int    `json:"index"`
 	ModelName  string `json:"model_name"`
@@ -28,8 +29,16 @@ type modelResponse struct {
 	APIKey     string `json:"api_key"`
 	Proxy      string `json:"proxy,omitempty"`
 	AuthMethod string `json:"auth_method,omitempty"`
-	Configured bool   `json:"configured"`
-	IsDefault  bool   `json:"is_default"`
+	// Advanced fields
+	ConnectMode    string `json:"connect_mode,omitempty"`
+	Workspace      string `json:"workspace,omitempty"`
+	RPM            int    `json:"rpm,omitempty"`
+	MaxTokensField string `json:"max_tokens_field,omitempty"`
+	RequestTimeout int    `json:"request_timeout,omitempty"`
+	ThinkingLevel  string `json:"thinking_level,omitempty"`
+	// Meta
+	Configured bool `json:"configured"`
+	IsDefault  bool `json:"is_default"`
 }
 
 // handleListModels returns all model_list entries with masked API keys.
@@ -47,15 +56,21 @@ func (h *Handler) handleListModels(w http.ResponseWriter, r *http.Request) {
 	models := make([]modelResponse, 0, len(cfg.ModelList))
 	for i, m := range cfg.ModelList {
 		models = append(models, modelResponse{
-			Index:      i,
-			ModelName:  m.ModelName,
-			Model:      m.Model,
-			APIBase:    m.APIBase,
-			APIKey:     maskAPIKey(m.APIKey),
-			Proxy:      m.Proxy,
-			AuthMethod: m.AuthMethod,
-			Configured: m.APIKey != "" || m.AuthMethod != "",
-			IsDefault:  m.ModelName == defaultModel,
+			Index:          i,
+			ModelName:      m.ModelName,
+			Model:          m.Model,
+			APIBase:        m.APIBase,
+			APIKey:         maskAPIKey(m.APIKey),
+			Proxy:          m.Proxy,
+			AuthMethod:     m.AuthMethod,
+			ConnectMode:    m.ConnectMode,
+			Workspace:      m.Workspace,
+			RPM:            m.RPM,
+			MaxTokensField: m.MaxTokensField,
+			RequestTimeout: m.RequestTimeout,
+			ThinkingLevel:  m.ThinkingLevel,
+			Configured:     m.APIKey != "" || m.AuthMethod != "",
+			IsDefault:      m.ModelName == defaultModel,
 		})
 	}
 
@@ -110,6 +125,9 @@ func (h *Handler) handleAddModel(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleUpdateModel replaces a model configuration entry at the given index.
+// If the request body omits api_key (or sends an empty string), the existing
+// stored key is preserved so callers can update only api_base / proxy without
+// exposing or clearing the secret.
 //
 //	PUT /api/models/{index}
 func (h *Handler) handleUpdateModel(w http.ResponseWriter, r *http.Request) {
@@ -148,6 +166,12 @@ func (h *Handler) handleUpdateModel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Preserve the existing API key when the caller omits it (empty string).
+	// This lets the UI update api_base / proxy without clearing the stored secret.
+	if mc.APIKey == "" {
+		mc.APIKey = cfg.ModelList[idx].APIKey
+	}
+
 	cfg.ModelList[idx] = mc
 
 	if err := config.SaveConfig(h.configPath, cfg); err != nil {
@@ -180,7 +204,17 @@ func (h *Handler) handleDeleteModel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	deletedModelName := cfg.ModelList[idx].ModelName
+
 	cfg.ModelList = append(cfg.ModelList[:idx], cfg.ModelList[idx+1:]...)
+
+	// If the deleted model was the default, clear it.
+	if cfg.Agents.Defaults.ModelName == deletedModelName {
+		cfg.Agents.Defaults.ModelName = ""
+	}
+	if cfg.Agents.Defaults.Model == deletedModelName {
+		cfg.Agents.Defaults.Model = ""
+	}
 
 	if err := config.SaveConfig(h.configPath, cfg); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to save config: %v", err), http.StatusInternalServerError)

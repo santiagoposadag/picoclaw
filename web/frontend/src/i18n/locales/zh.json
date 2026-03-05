@@ -37,11 +37,9 @@
     "noHistory": "暂无对话历史",
     "messagesCount": "{{count}} 条消息",
     "noModel": "选择模型",
-    "configureModelPrompt": "配置模型后使用",
     "setupModel": {
       "title": "尚未配置模型",
-      "description": "请先配置至少一个带有 API Key 的 AI 模型，才能开始对话。",
-      "action": "配置模型"
+      "description": "请先配置至少一个带有 API Key 的 AI 模型，才能开始对话。"
     },
     "modelGroup": {
       "apikey": "API Key",
@@ -66,7 +64,79 @@
     }
   },
   "common": {
-    "cancel": "取消"
+    "cancel": "取消",
+    "save": "保存"
+  },
+  "models": {
+    "description": "为每个 AI 服务商配置 API Key。只有已配置的模型可用于对话。",
+    "loadError": "加载模型列表失败",
+    "header": {
+      "configured": "已配置"
+    },
+    "currentDefault": "默认模型：",
+    "status": {
+      "configured": "已配置",
+      "unconfigured": "未配置"
+    },
+    "badge": {
+      "default": "默认"
+    },
+    "action": {
+      "edit": "编辑 API Key",
+      "setDefault": "设为默认",
+      "delete": "删除模型"
+    },
+    "add": {
+      "button": "添加模型",
+      "title": "添加自定义模型",
+      "description": "添加兼容 OpenAI 或原生协议的模型端点。",
+      "modelName": "模型别名",
+      "modelNamePlaceholder": "例如 my-gpt4",
+      "modelNameHint": "用于在对话中识别此模型的简短名称。",
+      "modelId": "模型标识符",
+      "modelIdPlaceholder": "例如 openai/gpt-4o",
+      "modelIdHint": "格式：协议/模型ID。支持：openai、anthropic、gemini、groq 等。",
+      "errorRequired": "此字段为必填项。",
+      "saveError": "添加模型失败",
+      "confirm": "添加模型"
+    },
+    "delete": {
+      "title": "确认删除模型？",
+      "description": "「{{name}}」将从模型列表中永久移除，此操作不可撤销。",
+      "confirm": "删除",
+      "errorDefault": "无法删除默认模型。请先将其他模型设为默认。"
+    },
+    "advanced": {
+      "toggle": "高级选项"
+    },
+    "field": {
+      "apiBase": "API Base URL",
+      "apiKey": "API Key",
+      "apiKeyPlaceholder": "请输入 API Key",
+      "apiKeyPlaceholderSet": "留空保持原有 Key 不变",
+      "proxy": "HTTP 代理",
+      "proxyHint": "可选。例如 http://127.0.0.1:7890",
+      "authMethod": "认证方式",
+      "authMethodHint": "认证方式：oauth、token。留空表示使用 API Key 认证。",
+      "connectMode": "连接模式",
+      "connectModeHint": "CLI 型服务商的连接模式：stdio 或 grpc。",
+      "workspace": "工作目录",
+      "workspaceHint": "CLI 型服务商的工作目录路径（如 GitHub Copilot）。",
+      "requestTimeout": "请求超时（秒）",
+      "requestTimeoutHint": "等待响应的最大秒数，0 表示使用默认值。",
+      "rpm": "速率限制（RPM）",
+      "rpmHint": "每分钟最大请求数，0 表示不限制。",
+      "thinkingLevel": "思考级别",
+      "thinkingLevelHint": "扩展思考预算：off、low、medium、high、xhigh、adaptive。",
+      "maxTokensField": "Max Tokens 字段名",
+      "maxTokensFieldHint": "覆盖请求中 max_tokens 的字段名，例如 max_completion_tokens。"
+    },
+    "edit": {
+      "title": "配置 {{name}}",
+      "apiKeyHint": "已设置 API Key，留空表示不修改。",
+      "oauthNote": "该服务商使用 OAuth 认证，无需 API Key。",
+      "saveError": "保存失败"
+    }
   },
   "pages": {
     "providers": {

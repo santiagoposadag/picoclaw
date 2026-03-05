@@ -45,7 +45,7 @@ const navGroups = [
     ],
   },
   {
-    label: "navigation.service",
+    label: "navigation.services",
     defaultOpen: true,
     items: [
       { title: "navigation.config", url: "/config", icon: IconSettings },

@@ -5,11 +5,12 @@ import {
   IconHistory,
   IconMicrophone,
   IconPaperclip,
+  IconPlugConnectedX,
   IconPlus,
   IconSparkles,
   IconTrash,
 } from "@tabler/icons-react"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 import dayjs from "dayjs"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -185,9 +186,8 @@ function Index() {
     newChat,
   } = usePicoChat()
 
-  const { state: gwState, isInitialized } = useGateway()
+  const { state: gwState } = useGateway()
   const isConnected = gwState === "running"
-  const navigate = useNavigate()
   const hasConfiguredModels = modelList.some((m) => m.configured)
 
   const oauthModels = modelList.filter(
@@ -210,7 +210,9 @@ function Index() {
     try {
       const data = await getModels()
       setModelList(data.models)
-      setDefaultModelName(data.default_model)
+      if (data.models.some((m) => m.model_name === data.default_model)) {
+        setDefaultModelName(data.default_model)
+      }
     } catch {
       // silently fail
     }
@@ -332,73 +334,62 @@ function Index() {
       <PageHeader
         title="Chat"
         titleExtra={
-          hasConfiguredModels ? (
-            <Select value={defaultModelName} onValueChange={handleSetDefault}>
-              <SelectTrigger
-                size="sm"
-                className="text-muted-foreground hover:text-foreground h-8 max-w-[160px] bg-transparent shadow-none focus-visible:border-transparent focus-visible:ring-0 sm:max-w-[220px]"
-              >
-                <SelectValue placeholder={t("chat.noModel")} />
-              </SelectTrigger>
-              <SelectContent>
-                {apiKeyModels.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel>
-                      {t("chat.modelGroup.apikey", "API Key")}
-                    </SelectLabel>
-                    {apiKeyModels.map((model) => (
-                      <SelectItem key={model.index} value={model.model_name}>
-                        {model.model_name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )}
-                {apiKeyModels.length > 0 &&
-                  (oauthModels.length > 0 || localModels.length > 0) && (
-                    <SelectSeparator />
-                  )}
-
-                {oauthModels.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel>
-                      {t("chat.modelGroup.oauth", "OAuth")}
-                    </SelectLabel>
-                    {oauthModels.map((model) => (
-                      <SelectItem key={model.index} value={model.model_name}>
-                        {model.model_name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )}
-                {oauthModels.length > 0 &&
-                  (localModels.length > 0 || apiKeyModels.length > 0) && (
-                    <SelectSeparator />
-                  )}
-
-                {localModels.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel>
-                      {t("chat.modelGroup.local", "Local")}
-                    </SelectLabel>
-                    {localModels.map((model) => (
-                      <SelectItem key={model.index} value={model.model_name}>
-                        {model.model_name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Button
-              variant="link"
+          <Select value={defaultModelName} onValueChange={handleSetDefault}>
+            <SelectTrigger
               size="sm"
-              className="text-muted-foreground hover:text-foreground h-8 px-0 text-xs font-normal text-red-500"
-              onClick={() => navigate({ to: "/models" })}
+              className="text-muted-foreground hover:text-foreground focus-visible:border-input h-8 max-w-[160px] min-w-[80px] bg-transparent shadow-none focus-visible:ring-0 sm:max-w-[220px]"
             >
-              {t("chat.configureModelPrompt")}
-            </Button>
-          )
+              <SelectValue placeholder={t("chat.noModel")} />
+            </SelectTrigger>
+            <SelectContent>
+              {apiKeyModels.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel>
+                    {t("chat.modelGroup.apikey", "API Key")}
+                  </SelectLabel>
+                  {apiKeyModels.map((model) => (
+                    <SelectItem key={model.index} value={model.model_name}>
+                      {model.model_name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+              {apiKeyModels.length > 0 &&
+                (oauthModels.length > 0 || localModels.length > 0) && (
+                  <SelectSeparator />
+                )}
+
+              {oauthModels.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel>
+                    {t("chat.modelGroup.oauth", "OAuth")}
+                  </SelectLabel>
+                  {oauthModels.map((model) => (
+                    <SelectItem key={model.index} value={model.model_name}>
+                      {model.model_name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+              {oauthModels.length > 0 &&
+                (localModels.length > 0 || apiKeyModels.length > 0) && (
+                  <SelectSeparator />
+                )}
+
+              {localModels.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel>
+                    {t("chat.modelGroup.local", "Local")}
+                  </SelectLabel>
+                  {localModels.map((model) => (
+                    <SelectItem key={model.index} value={model.model_name}>
+                      {model.model_name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+            </SelectContent>
+          </Select>
         }
       >
         <Button
@@ -483,9 +474,9 @@ function Index() {
         className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 lg:px-24 xl:px-48"
       >
         <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-8 pb-8">
-          {messages.length === 0 && !isTyping && isConnected && (
+          {messages.length === 0 && !isTyping && (
             <div className="flex flex-col items-center justify-center py-20 opacity-70">
-              {!hasConfiguredModels ? (
+              {!hasConfiguredModels || !defaultModelName ? (
                 <>
                   <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
                     <IconSparkles className="h-8 w-8" />
@@ -496,14 +487,15 @@ function Index() {
                   <p className="text-muted-foreground mb-4 max-w-sm text-center text-sm">
                     {t("chat.setupModel.description")}
                   </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    onClick={() => navigate({ to: "/models" })}
-                  >
-                    {t("chat.setupModel.action")}
-                  </Button>
+                </>
+              ) : !isConnected ? (
+                <>
+                  <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+                    <IconPlugConnectedX className="h-8 w-8" />
+                  </div>
+                  <p className="text-muted-foreground mb-4 max-w-sm text-center text-sm">
+                    {t("chat.connectFirst")}
+                  </p>
                 </>
               ) : (
                 <>
@@ -545,14 +537,8 @@ function Index() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={
-              !isInitialized
-                ? t("chat.connecting")
-                : isConnected
-                  ? t("chat.placeholder")
-                  : t("chat.connectFirst")
-            }
-            disabled={!isConnected}
+            placeholder={t("chat.placeholder")}
+            disabled={!isConnected || !defaultModelName}
             className="max-h-[200px] min-h-[60px] resize-none border-0 bg-transparent px-2 py-1 text-[15px] shadow-none focus-visible:ring-0 focus-visible:outline-none dark:bg-transparent"
             minRows={1}
             maxRows={8}
