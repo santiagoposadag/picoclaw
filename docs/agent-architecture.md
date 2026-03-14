@@ -1169,6 +1169,178 @@ OS: Go channel send (in-memory)
 
 ---
 
+## 12. Subagent Concurrency: Multiple Instances of the Same Agent
+
+### Can You Spawn Multiple Instances?
+
+**Yes.** The `SubagentManager.Spawn()` creates a new goroutine per call with no
+deduplication and no concurrency cap. The LLM can call `spawn` N times and get
+N independent, concurrent task goroutines — all of the same agent type.
+
+### How It Works
+
+```
+Agent "main" (iteration 3) calls spawn 3 times in parallel:
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │ Main Agent Loop (goroutine 0)                                   │
+  │                                                                 │
+  │  LLM response: 3 tool_calls, all "spawn"                       │
+  │                                                                 │
+  │  WaitGroup.Add(3)                                               │
+  │  ├── go execute(spawn, {task: "search auth docs"})              │
+  │  ├── go execute(spawn, {task: "search logging docs"})           │
+  │  └── go execute(spawn, {task: "search caching docs"})           │
+  │  WaitGroup.Wait()                                               │
+  └─────────────────────────────────────────────────────────────────┘
+        |               |               |
+        v               v               v
+  ┌───────────┐   ┌───────────┐   ┌───────────┐
+  │ subagent-1│   │ subagent-2│   │ subagent-3│
+  │ goroutine │   │ goroutine │   │ goroutine │
+  │           │   │           │   │           │
+  │ RunTool   │   │ RunTool   │   │ RunTool   │
+  │  Loop()   │   │  Loop()   │   │  Loop()   │
+  │           │   │           │   │           │
+  │ Own msgs  │   │ Own msgs  │   │ Own msgs  │
+  │ Own iters │   │ Own iters │   │ Own iters │
+  │ (max 10)  │   │ (max 10)  │   │ (max 10)  │
+  └─────┬─────┘   └─────┬─────┘   └─────┬─────┘
+        |               |               |
+     SHARED          SHARED          SHARED
+        |               |               |
+  ┌─────┴───────────────┴───────────────┴─────┐
+  │  LLM Provider (HTTP client, connection    │
+  │  pool, API key rotation)                  │
+  │                                           │
+  │  ToolRegistry (read-only, RWMutex)        │
+  │                                           │
+  │  Workspace directory                      │
+  └───────────────────────────────────────────┘
+```
+
+### What Each Subagent Instance Gets
+
+Each spawned subagent is **not** a full `AgentInstance`. It is a lightweight
+`RunToolLoop()` call (pkg/tools/subagent.go:163) with:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    Per Subagent (unique)                   │
+├──────────────────────────────────────────────────────────┤
+│  Own goroutine                                           │
+│  Own []Message array  (system prompt + task description)  │
+│  Own iteration counter (up to maxIterations, default 10)  │
+│  Own context.Context   (independently cancellable)        │
+│  Own SubagentTask entry (ID, status, result)              │
+├──────────────────────────────────────────────────────────┤
+│                  Shared (read-only / thread-safe)         │
+├──────────────────────────────────────────────────────────┤
+│  LLM Provider   (http.Client with connection pooling)    │
+│  ToolRegistry   (protected by sync.RWMutex)              │
+│  Model name     (string, immutable)                      │
+│  Workspace path (string, immutable)                      │
+│  LLM options    (maxTokens, temperature — copied once)   │
+└──────────────────────────────────────────────────────────┘
+```
+
+### OS Resources per Concurrent Subagent
+
+```
+1 subagent = 1 goroutine (~8KB stack)
+           + 1-10 HTTP requests per iteration (LLM API)
+           + 0-N child goroutines (parallel tool calls within subagent)
+           + 0-N file descriptors (if subagent reads/writes files)
+           + 0-N child processes (if subagent uses exec tool)
+           + ~50-200KB memory (message array + buffers)
+
+5 concurrent subagents ≈
+   5 goroutines + 5-50 HTTP requests + ~500KB-1MB memory
+```
+
+### Synchronous vs Asynchronous Subagents
+
+There are **two** subagent tools:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  "spawn" tool (SpawnTool)         ASYNC                      │
+│  ──────────────────────────────────────────                   │
+│  - Returns immediately with "Spawned subagent..."            │
+│  - Task runs in background goroutine                         │
+│  - Result delivered via AsyncCallback to message bus          │
+│  - Parent agent continues to next iteration without waiting   │
+│                                                              │
+│  Use case: "Go research X while I work on Y"                │
+├──────────────────────────────────────────────────────────────┤
+│  "subagent" tool (SubagentTool)   SYNC                       │
+│  ──────────────────────────────────────────                   │
+│  - Blocks until task completes                               │
+│  - Result returned directly in ToolResult                    │
+│  - Parent agent waits (goroutine blocked on RunToolLoop)     │
+│                                                              │
+│  Use case: "Delegate this subtask and use its result"        │
+└──────────────────────────────────────────────────────────────┘
+```
+
+When the LLM requests multiple `spawn` calls in a single iteration, they all
+execute in **parallel goroutines** (via the WaitGroup in loop.go:1261), each
+spawning its own background task. The spawn tool returns `Async: true`, so the
+main loop doesn't block — it collects the "spawned" confirmation and moves on.
+
+### Permission Model
+
+```
+CanSpawnSubagent(parentAgentID, targetAgentID)
+
+  Config:
+    agents:
+      list:
+        - id: main
+          subagents:
+            allow_agents: ["research", "code-review"]  # whitelist
+        - id: research
+          subagents:
+            allow_agents: ["*"]                         # allow all
+
+  "main" -> spawn(agent_id: "research")     ✓ allowed
+  "main" -> spawn(agent_id: "code-review")  ✓ allowed
+  "main" -> spawn(agent_id: "deploy")       ✗ blocked
+  "research" -> spawn(agent_id: "anything") ✓ wildcard
+```
+
+The permission gate controls **which agent types** can be targeted. It does
+**not** limit **how many** instances of the same type can run simultaneously.
+
+### What Bounds Concurrency in Practice
+
+Since there is no explicit concurrency cap, these factors naturally limit it:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  1. Parent MaxIterations (default 20)               │
+│     Each spawn call costs 1 iteration. Parent can   │
+│     spawn at most ~20 subagents per message.        │
+│                                                     │
+│  2. LLM API Rate Limits                             │
+│     Each subagent iteration = 1 API call.           │
+│     5 subagents × 10 iterations = 50 API calls.     │
+│     Provider rate limits will throttle this.         │
+│                                                     │
+│  3. Context Cancellation                            │
+│     ctx.Done() propagates from parent to all        │
+│     children. If parent is canceled, all subagents  │
+│     check ctx and stop (subagent.go:132-140).       │
+│                                                     │
+│  4. Go Runtime Scheduler                            │
+│     Goroutines are multiplexed onto OS threads.     │
+│     Go scheduler handles thousands of goroutines    │
+│     efficiently, so this is rarely the bottleneck.  │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
 ## File Reference
 
 | File | Lines | Purpose |
